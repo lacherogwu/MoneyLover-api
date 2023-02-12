@@ -1,0 +1,28 @@
+{
+	"name": "moneylover",
+	"version": "1.0.0",
+	"description": "Money Lover unofficial API client",
+	"main": "dist/MoneyLover.js",
+	"type": "module",
+	"scripts": {
+		"build": "rm -rf dist && tsc",
+		"dev": "nodemon --exec ts-node-esm src/MoneyLover.ts"
+	},
+	"keywords": [
+		"api",
+		"client",
+		"moneylover"
+	],
+	"author": "LacheRo`",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^18.13.0",
+		"nodemon": "^2.0.20",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.9.5"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lacherogwu/MoneyLover-api"
+	}
+}
