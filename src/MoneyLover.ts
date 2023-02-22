@@ -12,6 +12,8 @@ import type {
 	AdjustBalanceParams,
 } from './types.js';
 
+export * from './types.js';
+
 class MoneyLover {
 	#client;
 	#categories: Category[] = [];
