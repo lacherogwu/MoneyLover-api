@@ -1,6 +1,6 @@
 {
 	"name": "moneylover",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Money Lover unofficial API client",
 	"main": "dist/MoneyLover.js",
 	"type": "module",
