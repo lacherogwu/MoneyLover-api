@@ -9,7 +9,7 @@ export type GetLoginDataResponse = {
 	};
 };
 
-type Currency =
+export type Currency =
 	| 'USD'
 	| 'CAD'
 	| 'EUR'
