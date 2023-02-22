@@ -1,3 +1,6 @@
+import FormData from 'form-data';
+import fetch, { Response } from 'node-fetch';
+
 type Config = {
 	baseURL?: string;
 	headers?: Record<string, string>;
@@ -15,16 +18,16 @@ type RequestOptions = {
 	query?: any;
 };
 
-interface ApiResponse<T = string | Record<string, any>> extends Response {
-	data: T;
-}
-
 class ApiError<T> extends Error {
 	response: ApiResponse<T>;
 	constructor(response: ApiResponse<T>) {
 		super(response.statusText);
 		this.response = response;
 	}
+}
+
+interface ApiResponse<T = string | Record<string, any>> extends Response {
+	data: T;
 }
 
 class ApiClient {
@@ -79,7 +82,7 @@ class ApiClient {
 			requestInfo.data = JSON.stringify(requestInfo.data);
 		}
 
-		const fetchResponse = await fetch(url, {
+		const fetchResponse = await fetch(url.toString(), {
 			method: requestInfo.method,
 			headers: {
 				...this.config.headers,
@@ -88,12 +91,13 @@ class ApiClient {
 			body: requestInfo.data,
 		});
 
-		let response = fetchResponse as ApiResponse<T>;
+		let response = {} as ApiResponse<T>;
+		Object.assign(response, fetchResponse);
 
-		if (response.headers.get('Content-Type')?.includes('application/json')) {
-			response.data = await response.json();
+		if (fetchResponse.headers.get('Content-Type')?.includes('application/json')) {
+			Object.assign(response, { data: await fetchResponse.json() });
 		} else {
-			response.data = (await response.text()) as any;
+			Object.assign(response, { data: await fetchResponse.text() });
 		}
 
 		for (const responseInterceptors of this.#responseInterceptors) {
@@ -178,7 +182,7 @@ class ApiClient {
 			requestInfo.data = JSON.stringify(requestInfo.data);
 		}
 
-		const fetchResponse = await fetch(url, {
+		const fetchResponse = await fetch(url.toString(), {
 			method: requestInfo.method,
 			headers: {
 				...requestInfo.headers,
@@ -186,12 +190,13 @@ class ApiClient {
 			body: requestInfo.data,
 		});
 
-		let response = fetchResponse as ApiResponse<T>;
+		const response = {} as ApiResponse<T>;
+		Object.assign(response, fetchResponse);
 
-		if (response.headers.get('Content-Type')?.includes('application/json')) {
-			response.data = await response.json();
+		if (fetchResponse.headers.get('Content-Type')?.includes('application/json')) {
+			Object.assign(response, { data: await fetchResponse.json() });
 		} else {
-			response.data = (await response.text()) as any;
+			Object.assign(response, { data: await fetchResponse.text() });
 		}
 
 		if (!fetchResponse.ok) throw new ApiError(response);

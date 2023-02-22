@@ -42,7 +42,8 @@ class MoneyLover {
 				requestToken: request_token,
 				client,
 			};
-		} catch {
+		} catch (err) {
+			console.log(err);
 			throw new Error('could not get login details');
 		}
 	}
