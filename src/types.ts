@@ -1,11 +1,34 @@
 export type GetTokenResponse = {
 	access_token: string;
+	status: boolean;
+	code?: string;
+	message?: string;
+	expire: string;
+	refresh_token: string;
+};
+
+export type AuthData = {
+	accessToken: string;
+	refreshToken: string;
+	expire: string;
 };
 
 export type GetLoginDataResponse = {
 	data: {
 		request_token: string;
 		login_url: string;
+	};
+};
+
+export type GetRefreshTokenResponse = {
+	error: number;
+	msg: 'refresh_token_success';
+	action: 'refresh_token';
+	data: {
+		status: boolean;
+		access_token: string;
+		expire: string;
+		refresh_token: string;
 	};
 };
 

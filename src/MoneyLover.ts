@@ -1,3 +1,7 @@
+import os from 'os';
+import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs/promises';
 import ApiClient from './ApiClient.js';
 import type {
 	GetTokenResponse, //
@@ -10,9 +14,18 @@ import type {
 	AddTransactionParams,
 	GetCategoryIdParams,
 	AdjustBalanceParams,
+	GetRefreshTokenResponse,
+	AuthData,
 } from './types.js';
 
 export * from './types.js';
+
+async function isPathExists(path: string) {
+	return fs
+		.stat(path)
+		.then(() => true)
+		.catch(() => false);
+}
 
 class MoneyLover {
 	#client;
@@ -28,9 +41,76 @@ class MoneyLover {
 		});
 	}
 
+	static #isValidCachedFile(data: Record<string, string>): data is AuthData {
+		try {
+			const keys = ['accessToken', 'refreshToken', 'expire'] as const;
+			keys.forEach(key => {
+				if (!data[key]) throw Error;
+			});
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	static #parseCachedFileData(rawData: string): Record<string, string> {
+		try {
+			return JSON.parse(rawData);
+		} catch (err) {
+			return {};
+		}
+	}
+
+	static #isTokenExpired(expire: string) {
+		const now = Date.now() / 1000;
+		return now > +expire;
+	}
+
+	static async #refreshToken(refreshToken: string) {
+		try {
+			const { data: response } = await ApiClient.post<GetRefreshTokenResponse>('https://web.moneylover.me/api/user/refresh-token', {
+				refreshToken,
+			});
+
+			return this.#parseAuthResponse(response.data);
+		} catch (err) {
+			throw new Error('could not refresh token');
+		}
+	}
+
 	static async authenticate(email: string, password: string) {
-		const { requestToken, client } = await this.#getLoginData();
-		const token = await this.#getToken({ email, password, requestToken, client });
+		const basePath = os.tmpdir() + '/.moneylover';
+		const hash = crypto.createHash('sha256').update(`${email}:${password}`).digest('hex');
+		const filePath = path.resolve(basePath, hash + '.json');
+
+		if (!(await isPathExists(filePath))) {
+			await fs.mkdir(basePath).catch(() => {});
+			await fs.writeFile(filePath, '{}');
+		}
+
+		let token: string;
+		let auth: AuthData | undefined;
+
+		const cachedFileRawData = await fs.readFile(filePath, 'utf-8');
+		const cachedFileData = this.#parseCachedFileData(cachedFileRawData);
+		if (this.#isValidCachedFile(cachedFileData)) {
+			const isExpire = this.#isTokenExpired(cachedFileData.expire);
+			if (isExpire) {
+				auth = await this.#refreshToken(cachedFileData.refreshToken);
+				token = auth.accessToken;
+			} else {
+				token = cachedFileData.accessToken;
+			}
+		} else {
+			const { requestToken, client } = await this.#getLoginData();
+			auth = await this.#getAuth({ email, password, requestToken, client });
+			token = auth.accessToken;
+		}
+
+		if (auth) {
+			await fs.writeFile(filePath, JSON.stringify(auth));
+		}
+
 		return token;
 	}
 
@@ -45,12 +125,19 @@ class MoneyLover {
 				client,
 			};
 		} catch (err) {
-			console.log(err);
 			throw new Error('could not get login details');
 		}
 	}
 
-	static async #getToken(params: GetTokenParams) {
+	static #parseAuthResponse(response: GetTokenResponse) {
+		return {
+			accessToken: response.access_token,
+			refreshToken: response.refresh_token,
+			expire: response.expire,
+		};
+	}
+
+	static async #getAuth(params: GetTokenParams) {
 		const { email, password, requestToken, client } = params;
 		try {
 			const body = {
@@ -65,10 +152,11 @@ class MoneyLover {
 			const { data: response } = await ApiClient.post<GetTokenResponse>('https://oauth.moneylover.me/token', body, {
 				headers,
 			});
+			if (!response.status) throw new Error(response.message);
 
-			return response.access_token;
-		} catch {
-			throw new Error('could not get token');
+			return this.#parseAuthResponse(response);
+		} catch (err: any) {
+			throw new Error(err?.message ?? 'could not get token');
 		}
 	}
 
